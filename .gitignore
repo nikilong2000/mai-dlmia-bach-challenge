@@ -222,3 +222,4 @@ ENV/
 *.db
 
 data/
+*.pth
