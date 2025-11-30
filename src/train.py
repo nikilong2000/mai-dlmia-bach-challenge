@@ -34,7 +34,7 @@ def train():
 
     print(f"Using device: {DEVICE}")
 
-    # baseline transformations (no augmentation)
+    # baseline transformations (no augmentation) # TODO
     baseline_transform = transforms.Compose(
         [
             transforms.Resize(IMG_SIZE),
