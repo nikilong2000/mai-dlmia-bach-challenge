@@ -1,0 +1,11 @@
+openslide-python
+matplotlib
+scipy
+numpy
+xml-python
+opencv-python
+torch
+torchvision
+scikit-learn
+tqdm
+PyYAML

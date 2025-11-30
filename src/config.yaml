@@ -1,0 +1,20 @@
+hyperparameters:
+  batch_size: 32
+  learning_rate: 0.001
+  num_epochs: 10
+  img_size: [256, 256]
+
+data:
+  img_dir: "data/ICIAR2018_BACH_Challenge/Photos"
+  classes: ["Benign", "InSitu", "Invasive", "Normal"]
+  normalisation:
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+  patch_size: [2000, 2000]
+
+model:
+  save_name_template: "best_model_{}.pth"
+  model_weights: "best_model.pth"
+
+execution:
+  num_workers: 2
