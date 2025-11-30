@@ -1,31 +1,36 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
+import numpy as np
+from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 from tqdm import tqdm
 
-from src.dataset import BachDataset
+from src.dataset import BachDataset, get_stratified_split
 from src.model import ResNet18Model
-from src.dataset import BachDataset
 from src.utils import load_config
+from src.visualisations import create_history_plots
 
 
 def train():
     config = load_config()
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     # setting the global variables according to config
+    DATA_DIR = os.path.join(project_root, config["paths"]["img_dir"])
     BATCH_SIZE = config["hyperparameters"]["batch_size"]
     LEARNING_RATE = config["hyperparameters"]["learning_rate"]
     MEAN = config["data"]["normalisation"]["mean"]
     STD = config["data"]["normalisation"]["std"]
     NUM_CLASSES = len(config["data"]["classes"])
+    SPLIT = config["data"]["split"]
     NUM_EPOCHS = config["hyperparameters"]["num_epochs"]
     IMG_SIZE = tuple(config["hyperparameters"]["img_size"])
-    DATA_DIR = config["data"]["img_dir"]
     DEVICE = torch.device("mps" if torch.mps.is_available() else "cpu")
     NUM_WORKERS = config["execution"]["num_workers"]
-    MODEL_SAVE_PATH = config["model"]["model_weights"]
+    MODEL_SAVE_PATH = config["paths"]["best_model_path"]
+    RESULTS_PLOT_PATH = config["paths"]["history_dir"]
 
     print(f"Using device: {DEVICE}")
 
@@ -44,10 +49,8 @@ def train():
     # laoding the dataset via custom class
     dataset = BachDataset(root_dir=DATA_DIR, transform=baseline_transform)
 
-    # splitting the dataset
-    val_size = int(0.2 * len(dataset))
-    train_size = len(dataset) - val_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    # stratified split to ensure equal class distribution
+    train_dataset, val_dataset, _ = get_stratified_split(dataset, SPLIT)
 
     train_loader = DataLoader(
         train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS
@@ -127,3 +130,7 @@ def train():
             best_acc = val_acc
             torch.save(model.state_dict(), MODEL_SAVE_PATH)
             print(f"Saved best model to {MODEL_SAVE_PATH}")
+
+    # evaluation
+    print("\n--- Creating history plots ---")
+    create_history_plots(history, path=RESULTS_PLOT_PATH)
