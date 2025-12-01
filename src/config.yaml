@@ -32,5 +32,5 @@ execution:
 
 paths:
   img_dir: "data/ICIAR2018_BACH_Challenge/Photos"
-  best_model_path: "results/best_model.pth"
-  history_dir: "results/history"
+  best_model_path: "best_model.pth"
+  history_dir: "history"

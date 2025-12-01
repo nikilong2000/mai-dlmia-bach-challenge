@@ -32,11 +32,11 @@ def train(model_name="resnet18", save_path=None, normalisation_scheme="imagenet"
 
     # if running without ensemble
     if save_path is None:
-        MODEL_SAVE_PATH = config["paths"]["best_model_path"]
+        BEST_MODEL_PATH = config["paths"]["best_model_path"]
     else:
-        MODEL_SAVE_PATH = save_path
+        BEST_MODEL_PATH = save_path
 
-    RESULTS_PLOT_PATH = config["paths"]["history_dir"]
+    HISTORY_DIR = config["paths"]["history_dir"]
 
     print(f"Using device: {DEVICE}")
     print(f"Training Model: {model_name}")
@@ -82,6 +82,11 @@ def train(model_name="resnet18", save_path=None, normalisation_scheme="imagenet"
     criterion = nn.CrossEntropyLoss()
     optimiser = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
+    individual_run_path = f"_{model_name}_bs{BATCH_SIZE}_lr{LEARNING_RATE}"
+
+    if not os.path.exists(individual_run_path):
+        os.makedirs(individual_run_path)
+
     history = execute_training(
         model=model,
         train_loader=train_loader,
@@ -90,12 +95,19 @@ def train(model_name="resnet18", save_path=None, normalisation_scheme="imagenet"
         optimiser=optimiser,
         num_epochs=NUM_EPOCHS,
         device=DEVICE,
-        save_path=MODEL_SAVE_PATH,
+        save_path=os.path.join(individual_run_path, BEST_MODEL_PATH),
     )
 
     # evaluation
     print("\n--- Creating history plots ---")
-    create_history_plots(history, path=RESULTS_PLOT_PATH)
+
+    if not os.path.exists(os.path.join(individual_run_path, HISTORY_DIR)):
+        os.makedirs(os.path.join(individual_run_path, HISTORY_DIR))
+
+    create_history_plots(
+        history,
+        path=os.path.join(individual_run_path, HISTORY_DIR),
+    )
 
 
 def execute_training(

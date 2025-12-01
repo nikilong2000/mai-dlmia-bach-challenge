@@ -20,3 +20,33 @@ class ResNet18Model(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+
+class ResNet101Model(nn.Module):
+    def __init__(self, num_classes=4):
+        super(ResNet101Model, self).__init__()
+        self.model = models.resnet101(weights=models.ResNet101_Weights.DEFAULT)
+
+        number_features_last_layer = (
+            self.model.fc.in_features
+        )  # get number of input features
+        self.model.fc = nn.Linear(
+            number_features_last_layer, num_classes
+        )  # replace the classifier
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class DenseNet161Model(nn.Module):
+    def __init__(self, num_classes=4):
+        super(DenseNet161Model, self).__init__()
+        # Load pretrained DenseNet161
+        self.model = models.densenet161(weights=models.DenseNet161_Weights.DEFAULT)
+
+        # densenet uses classifier instead of fc
+        number_features_last_layer = self.model.classifier.in_features
+        self.model.classifier = nn.Linear(number_features_last_layer, num_classes)
+
+    def forward(self, x):
+        return self.model(x)
