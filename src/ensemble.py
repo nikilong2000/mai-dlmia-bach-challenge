@@ -124,7 +124,6 @@ def evaluate_ensemble():
     all_labels = []
 
     # simple iteration is fine for evaluation on test dataset
-
     for i in tqdm(range(len(test_dataset))):
         image, label = test_dataset[i]  # image is PIL, label is int
 

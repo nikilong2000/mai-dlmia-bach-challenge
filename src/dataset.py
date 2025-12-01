@@ -1,7 +1,7 @@
 import os
 import numpy as np
-from torch.utils.data import Dataset, Subset
 from PIL import Image
+from torch.utils.data import Dataset, Subset
 
 from src.utils import load_config
 

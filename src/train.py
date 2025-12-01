@@ -8,12 +8,12 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from src.dataset import BachDataset, get_stratified_split
-from src.model import ResNet18Model
+from src.model import ResNet18Model, ResNet101Model, DenseNet161Model
 from src.utils import load_config
 from src.visualisations import create_history_plots
 
 
-def train():
+def train(model_name="resnet18", save_path=None, normalisation_scheme="imagenet"):
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -21,20 +21,28 @@ def train():
     DATA_DIR = os.path.join(project_root, config["paths"]["img_dir"])
     BATCH_SIZE = config["hyperparameters"]["batch_size"]
     LEARNING_RATE = config["hyperparameters"]["learning_rate"]
-    MEAN = config["data"]["normalisation"]["mean"]
-    STD = config["data"]["normalisation"]["std"]
+    MEAN = config["data"]["normalisation"][normalisation_scheme]["mean"]
+    STD = config["data"]["normalisation"][normalisation_scheme]["std"]
     NUM_CLASSES = len(config["data"]["classes"])
     SPLIT = config["data"]["split"]
     NUM_EPOCHS = config["hyperparameters"]["num_epochs"]
     IMG_SIZE = tuple(config["hyperparameters"]["img_size"])
     DEVICE = torch.device("mps" if torch.mps.is_available() else "cpu")
     NUM_WORKERS = config["execution"]["num_workers"]
-    MODEL_SAVE_PATH = config["paths"]["best_model_path"]
+
+    # if running without ensemble
+    if save_path is None:
+        MODEL_SAVE_PATH = config["paths"]["best_model_path"]
+    else:
+        MODEL_SAVE_PATH = save_path
+
     RESULTS_PLOT_PATH = config["paths"]["history_dir"]
 
     print(f"Using device: {DEVICE}")
+    print(f"Training Model: {model_name}")
+    print(f"Normalisation Scheme: {normalisation_scheme}")
 
-    # baseline transformations (no augmentation) # TODO
+    # baseline transformations (no augmentation)
     baseline_transform = transforms.Compose(
         [
             transforms.Resize(IMG_SIZE),
@@ -64,24 +72,47 @@ def train():
     )
 
     # setting up the model
-    model = ResNet18Model(num_classes=NUM_CLASSES).to(DEVICE)
+    if model_name == "resnet18":
+        model = ResNet18Model(num_classes=NUM_CLASSES).to(DEVICE)
+    elif model_name == "resnet101":
+        model = ResNet101Model(num_classes=NUM_CLASSES).to(DEVICE)
+    elif "densenet161" in model_name:  # matches densenet161_1, densenet161_2 etc
+        model = DenseNet161Model(num_classes=NUM_CLASSES).to(DEVICE)
 
     criterion = nn.CrossEntropyLoss()
     optimiser = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    # training loop
+    history = execute_training(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        criterion=criterion,
+        optimiser=optimiser,
+        num_epochs=NUM_EPOCHS,
+        device=DEVICE,
+        save_path=MODEL_SAVE_PATH,
+    )
+
+    # evaluation
+    print("\n--- Creating history plots ---")
+    create_history_plots(history, path=RESULTS_PLOT_PATH)
+
+
+def execute_training(
+    model, train_loader, val_loader, criterion, optimiser, num_epochs, device, save_path
+):
     best_acc = 0.0
     history = {"train_loss": [], "val_loss": [], "train_acc": [], "val_acc": []}
 
-    for epoch in range(NUM_EPOCHS):
+    for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
         correct = 0
         total = 0
 
-        loop = tqdm(train_loader, desc=f"Epoch {epoch+1}/{NUM_EPOCHS}")
+        loop = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
         for images, labels in loop:
-            images, labels = images.to(DEVICE), labels.to(DEVICE)
+            images, labels = images.to(device), labels.to(device)
 
             optimiser.zero_grad()
             outputs = model(images)
@@ -107,7 +138,7 @@ def train():
         val_total = 0
         with torch.no_grad():
             for images, labels in val_loader:
-                images, labels = images.to(DEVICE), labels.to(DEVICE)
+                images, labels = images.to(device), labels.to(device)
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 val_running_loss += loss.item()
@@ -128,9 +159,7 @@ def train():
 
         if val_acc > best_acc:
             best_acc = val_acc
-            torch.save(model.state_dict(), MODEL_SAVE_PATH)
-            print(f"Saved best model to {MODEL_SAVE_PATH}")
+            torch.save(model.state_dict(), save_path)
+            print(f"Saved best model to {save_path}")
 
-    # evaluation
-    print("\n--- Creating history plots ---")
-    create_history_plots(history, path=RESULTS_PLOT_PATH)
+    return history
