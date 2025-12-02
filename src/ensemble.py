@@ -23,8 +23,18 @@ class EnsembleClassifier:
 
         for model_config in models_config:
             model_name = model_config["name"]
-            save_path = model_config["save_path"]
             normalisation_scheme = model_config["normalisation"]
+
+            # construct path
+            batch_size = self.config["hyperparameters"]["batch_size"]
+            learning_rate = self.config["hyperparameters"]["learning_rate"]
+            best_model_filename = self.config["paths"]["best_model_path"]
+
+            run_folder = f"{model_name}_bs{batch_size}_lr{learning_rate}"
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            save_path = os.path.join(
+                project_root, "results", run_folder, best_model_filename
+            )
 
             # initialise model architecture
             if model_name == "resnet18":
@@ -89,13 +99,14 @@ class EnsembleClassifier:
 
 def train_ensemble_models():
     config = load_config()
-    ensemble_models = config["ensemble"]["models"]
+    ensemble_models = config["ensemble2"][
+        "models"
+    ]  # TODO select ensemble1 or ensemble2
 
     for model_config in ensemble_models:
         print(f"\n=== Training {model_config['name']} ===")
         train(
             model_name=model_config["name"],
-            save_path=model_config["save_path"],
             normalisation_scheme=model_config["normalisation"],
         )
 
@@ -107,7 +118,7 @@ def evaluate_ensemble():
     SPLIT = config["data"]["split"]
     DEVICE = torch.device("mps" if torch.mps.is_available() else "cpu")
 
-    ensemble_config = config["ensemble"]["models"]
+    ensemble_config = config["ensemble2"]["models"]  # TODO
     ensemble = EnsembleClassifier(ensemble_config, DEVICE)
 
     # load the dataset without transform

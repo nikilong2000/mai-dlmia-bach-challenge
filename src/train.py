@@ -8,12 +8,12 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from src.dataset import BachDataset, get_stratified_split
-from src.model import ResNet18Model, ResNet101Model, DenseNet161Model
+from src.model import ResNet18Model, ResNet101Model, DenseNet121Model, DenseNet161Model
 from src.utils import load_config
 from src.visualisations import create_history_plots
 
 
-def train(model_name="resnet18", save_path=None, normalisation_scheme="imagenet"):
+def train(model_name="resnet18", normalisation_scheme="imagenet"):
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -29,13 +29,7 @@ def train(model_name="resnet18", save_path=None, normalisation_scheme="imagenet"
     IMG_SIZE = tuple(config["hyperparameters"]["img_size"])
     DEVICE = torch.device("mps" if torch.mps.is_available() else "cpu")
     NUM_WORKERS = config["execution"]["num_workers"]
-
-    # if running without ensemble
-    if save_path is None:
-        BEST_MODEL_PATH = config["paths"]["best_model_path"]
-    else:
-        BEST_MODEL_PATH = save_path
-
+    BEST_MODEL_PATH = config["paths"]["best_model_path"]
     HISTORY_DIR = config["paths"]["history_dir"]
 
     print(f"Using device: {DEVICE}")
@@ -76,13 +70,17 @@ def train(model_name="resnet18", save_path=None, normalisation_scheme="imagenet"
         model = ResNet18Model(num_classes=NUM_CLASSES).to(DEVICE)
     elif model_name == "resnet101":
         model = ResNet101Model(num_classes=NUM_CLASSES).to(DEVICE)
-    elif "densenet161" in model_name:  # matches densenet161_1, densenet161_2 etc
+    elif "densenet121" in model_name:
+        model = DenseNet121Model(num_classes=NUM_CLASSES).to(DEVICE)
+    elif "densenet161" in model_name:
         model = DenseNet161Model(num_classes=NUM_CLASSES).to(DEVICE)
 
     criterion = nn.CrossEntropyLoss()
     optimiser = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    individual_run_path = f"_{model_name}_bs{BATCH_SIZE}_lr{LEARNING_RATE}"
+    individual_run_path = os.path.join(
+        "results", f"{model_name}_bs{BATCH_SIZE}_lr{LEARNING_RATE}"
+    )
 
     if not os.path.exists(individual_run_path):
         os.makedirs(individual_run_path)

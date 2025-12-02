@@ -15,16 +15,22 @@ data:
       mean: [0.7169684767723083, 0.6170014142990112, 0.842685878276825]
       std: [0.1456914097070694, 0.1676328033208847, 0.10762365907430649]
 
-ensemble:
+ensemble1:
   models:
     - name: "resnet101"
-      save_path: "results/resnet101_best.pth"
       normalisation: "imagenet"
     - name: "densenet161_1"
-      save_path: "results/densenet161_1_best.pth"
       normalisation: "imagenet"
     - name: "densenet161_2"
-      save_path: "results/densenet161_2_best.pth"
+      normalisation: "bach"
+
+ensemble2:
+  models:
+    - name: "resnet18"
+      normalisation: "imagenet"
+    - name: "densenet121_1"
+      normalisation: "imagenet"
+    - name: "densenet121_2"
       normalisation: "bach"
 
 execution:
