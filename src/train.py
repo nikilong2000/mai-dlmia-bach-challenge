@@ -11,9 +11,12 @@ from src.dataset import BachDataset, get_stratified_split
 from src.model import ResNet18Model, ResNet101Model, DenseNet121Model, DenseNet161Model
 from src.utils import load_config
 from src.visualisations import create_history_plots
+from src.augmentations import get_transform
 
 
-def train(model_name="resnet18", normalisation_scheme="imagenet"):
+def train(
+    model_name="resnet18", augmentation_strength=0, normalisation_scheme="imagenet"
+):
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,23 +39,19 @@ def train(model_name="resnet18", normalisation_scheme="imagenet"):
     print(f"Training Model: {model_name}")
     print(f"Normalisation Scheme: {normalisation_scheme}")
 
-    # baseline transformations (no augmentation)
-    baseline_transform = transforms.Compose(
-        [
-            transforms.Resize(IMG_SIZE),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=MEAN,
-                std=STD,
-            ),
-        ]
-    )
+    # get augmentation transforms
+    train_transform = get_transform(augmentation_strength, normalisation_scheme)
+    val_transform = get_transform(0, normalisation_scheme)
 
     # laoding the dataset via custom class
-    dataset = BachDataset(root_dir=DATA_DIR, transform=baseline_transform)
+    train_dataset_full = BachDataset(root_dir=DATA_DIR, transform=train_transform)
+    val_dataset_full = BachDataset(root_dir=DATA_DIR, transform=val_transform)
 
     # stratified split to ensure equal class distribution
-    train_dataset, val_dataset, _ = get_stratified_split(dataset, SPLIT)
+    train_dataset, val_dataset, _ = get_stratified_split(train_dataset_full, SPLIT)
+
+    # apply validation transform to validation dataset
+    val_dataset = Subset(val_dataset_full, val_dataset.indices)
 
     train_loader = DataLoader(
         train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS
@@ -95,6 +94,13 @@ def train(model_name="resnet18", normalisation_scheme="imagenet"):
         device=DEVICE,
         save_path=os.path.join(individual_run_path, BEST_MODEL_PATH),
     )
+
+    # save metrics to file
+    metrics_path = os.path.join(individual_run_path, "metrics.txt")
+    with open(metrics_path, "w") as f:
+        for key, value in history.items():
+            f.write(f"{key}: {value}\n")
+    print(f"Saved metrics to {metrics_path}")
 
     # evaluation
     print("\n--- Creating history plots ---")

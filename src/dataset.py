@@ -25,7 +25,7 @@ class BachDataset(Dataset):
             cls_dir = os.path.join(root_dir, cls_name)
             if not os.path.isdir(cls_dir):
                 continue
-            for img_name in os.listdir(cls_dir):
+            for img_name in sorted(os.listdir(cls_dir)):
                 if img_name.lower().endswith(
                     (".png", ".jpg", ".jpeg", ".tif", ".tiff")
                 ):
@@ -38,10 +38,12 @@ class BachDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.images[idx]
         image = Image.open(img_path).convert("RGB")
+        image = np.array(image)
         label = self.labels[idx]
 
         if self.transform:
-            image = self.transform(image)
+            augmented = self.transform(image=image)
+            image = augmented["image"]
 
         return image, label
 
