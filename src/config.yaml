@@ -1,8 +1,8 @@
 hyperparameters:
-  batch_size: 32
+  batch_size: 8
   learning_rate: 0.0001
   num_epochs: 15
-  img_size: [256, 256]
+  img_size: [512, 512]
 
 data:
   classes: ["Benign", "InSitu", "Invasive", "Normal"]

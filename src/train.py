@@ -81,7 +81,8 @@ def train(
     optimiser = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     individual_run_path = os.path.join(
-        "results", f"{model_name}_bs{BATCH_SIZE}_lr{LEARNING_RATE}"
+        "results",
+        f"{model_name}_res{IMG_SIZE}_bs{BATCH_SIZE}_lr{LEARNING_RATE}_augm{augmentation_strength}_norm{normalisation_scheme}",
     )
 
     if not os.path.exists(individual_run_path):
@@ -116,6 +117,7 @@ def train(
     create_history_plots(
         history,
         model_name,
+        IMG_SIZE,
         LEARNING_RATE,
         BATCH_SIZE,
         augmentation_strength,
