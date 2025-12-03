@@ -182,8 +182,8 @@ docs/_build/
 target/
 
 # Jupyter Notebook
-*.ipynb
-.ipynb_checkpoints
+# *.ipynb
+# .ipynb_checkpoints
 
 # pyenv
 .python-version

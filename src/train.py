@@ -10,7 +10,7 @@ from tqdm import tqdm
 from src.dataset import BachDataset, get_stratified_split
 from src.model import ResNet18Model, ResNet101Model, DenseNet121Model, DenseNet161Model
 from src.utils import load_config
-from src.visualisations import create_history_plots
+from src.visualisations import create_history_plots, plot_confusion_matrix
 from src.augmentations import get_transform
 
 
@@ -35,11 +35,13 @@ def train(
     BEST_MODEL_PATH = config["paths"]["best_model_path"]
     HISTORY_DIR = config["paths"]["history_dir"]
 
+    print("\n--- Initialising Training Configuration ---")
     print(f"Using device: {DEVICE}")
     print(f"Training Model: {model_name}")
     print(f"Normalisation Scheme: {normalisation_scheme}")
 
     # get augmentation transforms
+    print("\n--- Loading Dataset and Transforms ---")
     train_transform = get_transform(augmentation_strength, normalisation_scheme)
     val_transform = get_transform(0, normalisation_scheme)
 
@@ -65,6 +67,7 @@ def train(
     )
 
     # setting up the model
+    print("\n--- Initialising Model ---")
     if model_name == "resnet18":
         model = ResNet18Model(num_classes=NUM_CLASSES).to(DEVICE)
     elif model_name == "resnet101":
@@ -84,6 +87,7 @@ def train(
     if not os.path.exists(individual_run_path):
         os.makedirs(individual_run_path)
 
+    print("\n--- Starting Training Loop ---")
     history = execute_training(
         model=model,
         train_loader=train_loader,
@@ -96,6 +100,7 @@ def train(
     )
 
     # save metrics to file
+    print("\n--- Saving Metrics ---")
     metrics_path = os.path.join(individual_run_path, "metrics.txt")
     with open(metrics_path, "w") as f:
         for key, value in history.items():
@@ -110,7 +115,39 @@ def train(
 
     create_history_plots(
         history,
+        model_name,
+        LEARNING_RATE,
+        BATCH_SIZE,
+        augmentation_strength,
+        normalisation_scheme,
         path=os.path.join(individual_run_path, HISTORY_DIR),
+    )
+
+    # confusion matrix
+    print("\n--- Creating confusion matrix ---")
+    model.load_state_dict(
+        torch.load(os.path.join(individual_run_path, BEST_MODEL_PATH))
+    )
+    model.eval()
+
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for images, labels in val_loader:
+            images, labels = images.to(DEVICE), labels.to(DEVICE)
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    plot_confusion_matrix(
+        all_labels,
+        all_preds,
+        classes=config["data"]["classes"],
+        save_path=os.path.join(
+            individual_run_path, HISTORY_DIR, "confusion_matrix.png"
+        ),
     )
 
 

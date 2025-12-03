@@ -11,6 +11,7 @@ from src.model import ResNet101Model, DenseNet161Model, ResNet18Model
 from src.utils import load_config
 from src.dataset import BachDataset, get_stratified_split
 from src.train import train
+from src.visualisations import plot_confusion_matrix
 
 
 class EnsembleClassifier:
@@ -104,7 +105,7 @@ def train_ensemble_models():
     ]  # TODO select ensemble1 or ensemble2
 
     for model_config in ensemble_models:
-        print(f"\n=== Training {model_config['name']} ===")
+        print(f"\n--- Training {model_config['name']} ---")
         train(
             model_name=model_config["name"],
             normalisation_scheme=model_config["normalisation"],
@@ -119,14 +120,18 @@ def evaluate_ensemble():
     DEVICE = torch.device("mps" if torch.mps.is_available() else "cpu")
 
     ensemble_config = config["ensemble2"]["models"]  # TODO
+
+    print("\n--- Initialising Ensemble Classifier ---")
     ensemble = EnsembleClassifier(ensemble_config, DEVICE)
 
     # load the dataset without transform
+    print("\n--- Loading Dataset and Splitting ---")
     dataset = BachDataset(root_dir=DATA_DIR, transform=None)
 
     # get test indices using the same split logic
     _, _, test_dataset = get_stratified_split(dataset, SPLIT)
 
+    print("\n--- Starting Evaluation Loop ---")
     print(f"Evaluating Ensemble on {len(test_dataset)} images…")
 
     correct = 0
@@ -151,5 +156,16 @@ def evaluate_ensemble():
     print(f"Ensemble Accuracy: {accuracy:.2f}%")
 
     class_names = config["data"]["classes"]
-    print("\nClassification Report:")
+    print("\n--- Generating Classification Report ---")
     print(classification_report(all_labels, all_preds, target_names=class_names))
+
+    # confusion matrix
+    print("\n--- Creating confusion matrix ---")
+    plot_confusion_matrix(
+        all_labels,
+        all_preds,
+        classes=class_names,
+        save_path=os.path.join(
+            project_root, "results", "ensemble_confusion_matrix.png"
+        ),
+    )
