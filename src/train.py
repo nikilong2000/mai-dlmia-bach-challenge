@@ -15,7 +15,10 @@ from src.augmentations import get_transform
 
 
 def train(
-    model_name="resnet18", augmentation_strength=0, normalisation_scheme="imagenet"
+    model_name="resnet18",
+    learning_rate=0.0001,
+    augmentation_strength=0,
+    normalisation_scheme="imagenet",
 ):
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -78,11 +81,11 @@ def train(
         model = DenseNet161Model(num_classes=NUM_CLASSES).to(DEVICE)
 
     criterion = nn.CrossEntropyLoss()
-    optimiser = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimiser = optim.Adam(model.parameters(), lr=learning_rate)
 
     individual_run_path = os.path.join(
         "results",
-        f"{model_name}_res{IMG_SIZE}_bs{BATCH_SIZE}_lr{LEARNING_RATE}_augm{augmentation_strength}_norm{normalisation_scheme}",
+        f"{model_name}_res{IMG_SIZE[0]}_bs{BATCH_SIZE}_lr{learning_rate}_augm{augmentation_strength}_norm{normalisation_scheme}",
     )
 
     if not os.path.exists(individual_run_path):
