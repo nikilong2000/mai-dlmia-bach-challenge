@@ -3,6 +3,7 @@ hyperparameters:
   learning_rate: 0.0001
   num_epochs: 15
   img_size: [512, 512]
+  k_folds: 5
 
 data:
   classes: ["Benign", "InSitu", "Invasive", "Normal"]

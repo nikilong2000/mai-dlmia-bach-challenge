@@ -2,6 +2,7 @@ import os
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, Subset
+from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 
 from src.utils import load_config
 
@@ -73,3 +74,31 @@ def get_stratified_split(dataset, split_ratios, seed=42):
     test_dataset = Subset(dataset, test_indices)
 
     return train_dataset, val_dataset, test_dataset
+
+
+def get_holdout_split(dataset, test_size=0.1, seed=42):
+    targets = dataset.labels
+    splitter = StratifiedShuffleSplit(
+        n_splits=1, test_size=test_size, random_state=seed
+    )
+    dev_idx, test_idx = next(splitter.split(np.zeros(len(targets)), targets))
+    return dev_idx, test_idx
+
+
+def get_cv_folds(dataset, dev_indices, k_folds=5, seed=42):
+    # extract targets specifically for the development subset to ensure stratification
+    dev_targets = [dataset.labels[i] for i in dev_indices]
+
+    skf = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
+
+    folds = []
+    # skf.split returns indices relative to the dev_targets array (0 to len(dev)-1)
+    # need to map these back to the original dataset indices
+    for relative_train_idx, relative_val_idx in skf.split(
+        np.zeros(len(dev_indices)), dev_targets
+    ):
+        train_idx = dev_indices[relative_train_idx]
+        val_idx = dev_indices[relative_val_idx]
+        folds.append((train_idx, val_idx))
+
+    return folds

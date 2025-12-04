@@ -7,7 +7,12 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 from tqdm import tqdm
 
-from src.dataset import BachDataset, get_stratified_split
+from src.dataset import (
+    BachDataset,
+    get_stratified_split,
+    get_holdout_split,
+    get_cv_folds,
+)
 from src.model import ResNet18Model, ResNet101Model, DenseNet121Model, DenseNet161Model
 from src.utils import load_config
 from src.visualisations import create_history_plots, plot_confusion_matrix
@@ -154,6 +159,132 @@ def train(
             individual_run_path, HISTORY_DIR, "confusion_matrix.png"
         ),
     )
+
+
+def train_k_fold(
+    model_name="resnet18",
+    learning_rate=0.0001,
+    augmentation_strength=0,
+    normalisation_scheme="imagenet",
+):
+    config = load_config()
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # setting the global variables according to config
+    DATA_DIR = os.path.join(project_root, config["paths"]["img_dir"])
+    BATCH_SIZE = config["hyperparameters"]["batch_size"]
+    LEARNING_RATE = config["hyperparameters"]["learning_rate"]
+    NUM_CLASSES = len(config["data"]["classes"])
+    NUM_EPOCHS = config["hyperparameters"]["num_epochs"]
+    IMG_SIZE = tuple(config["hyperparameters"]["img_size"])
+    DEVICE = torch.device("mps" if torch.mps.is_available() else "cpu")
+    NUM_WORKERS = config["execution"]["num_workers"]
+    BEST_MODEL_PATH = config["paths"]["best_model_path"]
+    HISTORY_DIR = config["paths"]["history_dir"]
+    K_FOLDS = config["hyperparameters"]["k_folds"]
+
+    print("\n--- Initialising K-Fold Training Configuration ---")
+    print(f"Using device: {DEVICE}")
+    print(f"Training Model: {model_name}")
+    print(f"Normalisation Scheme: {normalisation_scheme}")
+    print(f"K-Folds: {K_FOLDS}")
+
+    # get augmentation transforms
+    print("\n--- Loading Dataset and Transforms ---")
+    train_transform = get_transform(augmentation_strength, normalisation_scheme)
+    val_transform = get_transform(0, normalisation_scheme)
+
+    # loading the dataset via custom class
+    # We load the full dataset with train_transform initially, but we'll handle transforms carefully
+    # Actually, for the validation set we want val_transform.
+    # A common pattern is to have the dataset return the image, and apply transform in the loop or have two datasets.
+    # BachDataset takes transform in init.
+    # So we create two dataset objects pointing to the same data, one with train transform, one with val transform.
+    dataset_train_aug = BachDataset(root_dir=DATA_DIR, transform=train_transform)
+    dataset_val_aug = BachDataset(root_dir=DATA_DIR, transform=val_transform)
+
+    # 1. Split into Dev (90%) and Hold-out Test (10%)
+    dev_indices, test_indices = get_holdout_split(dataset_train_aug, test_size=0.1)
+    print(
+        f"Total Dev Samples: {len(dev_indices)}, Hold-out Test Samples: {len(test_indices)}"
+    )
+
+    # 2. Generate K-Folds from Dev set
+    folds = get_cv_folds(dataset_train_aug, dev_indices, k_folds=K_FOLDS)
+
+    base_run_path = os.path.join(
+        "results",
+        f"{model_name}_bs{BATCH_SIZE}_lr{learning_rate}",
+    )
+
+    for fold_idx, (train_idx, val_idx) in enumerate(folds):
+        print(f"\n--- Starting Fold {fold_idx+1}/{K_FOLDS} ---")
+
+        # Create Subsets
+        # Train subset uses dataset with train augmentations
+        train_subset = Subset(dataset_train_aug, train_idx)
+        # Val subset uses dataset with val augmentations (no aug)
+        val_subset = Subset(dataset_val_aug, val_idx)
+
+        train_loader = DataLoader(
+            train_subset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS
+        )
+        val_loader = DataLoader(
+            val_subset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS
+        )
+
+        print(
+            f"Fold {fold_idx+1} - Train samples: {len(train_subset)}, Val samples: {len(val_subset)}"
+        )
+
+        # setting up the model (fresh for each fold)
+        if model_name == "resnet18":
+            model = ResNet18Model(num_classes=NUM_CLASSES).to(DEVICE)
+        elif model_name == "resnet101":
+            model = ResNet101Model(num_classes=NUM_CLASSES).to(DEVICE)
+        elif "densenet121" in model_name:
+            model = DenseNet121Model(num_classes=NUM_CLASSES).to(DEVICE)
+        elif "densenet161" in model_name:
+            model = DenseNet161Model(num_classes=NUM_CLASSES).to(DEVICE)
+
+        criterion = nn.CrossEntropyLoss()
+        optimiser = optim.Adam(model.parameters(), lr=learning_rate)
+
+        fold_run_path = os.path.join(base_run_path, f"fold_{fold_idx}")
+        if not os.path.exists(fold_run_path):
+            os.makedirs(fold_run_path)
+
+        history = execute_training(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            criterion=criterion,
+            optimiser=optimiser,
+            num_epochs=NUM_EPOCHS,
+            device=DEVICE,
+            save_path=os.path.join(fold_run_path, BEST_MODEL_PATH),
+        )
+
+        # save metrics to file
+        metrics_path = os.path.join(fold_run_path, "metrics.txt")
+        with open(metrics_path, "w") as f:
+            for key, value in history.items():
+                f.write(f"{key}: {value}\n")
+
+        # Create history plots for this fold
+        if not os.path.exists(os.path.join(fold_run_path, HISTORY_DIR)):
+            os.makedirs(os.path.join(fold_run_path, HISTORY_DIR))
+
+        create_history_plots(
+            history,
+            f"{model_name}_fold{fold_idx}",
+            IMG_SIZE,
+            LEARNING_RATE,
+            BATCH_SIZE,
+            augmentation_strength,
+            normalisation_scheme,
+            path=os.path.join(fold_run_path, HISTORY_DIR),
+        )
 
 
 def execute_training(
