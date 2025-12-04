@@ -33,7 +33,7 @@ def main():
 
         for fold in range(k_folds):
             try:
-                acc = evaluate_single_fold(name, fold, norm)
+                acc = evaluate_single_fold(name, fold, norm, save_cm=True)
                 if acc is not None:
                     results.append(
                         {"Model": name, "Fold": fold, "Norm": norm, "Accuracy": acc}

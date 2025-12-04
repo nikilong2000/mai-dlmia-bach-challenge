@@ -2,6 +2,10 @@ import os
 import torch
 import argparse
 import sys
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader, Subset
 from sklearn.metrics import classification_report
 
@@ -16,7 +20,9 @@ from src.model import ResNet18Model, ResNet101Model, DenseNet121Model, DenseNet1
 from src.augmentations import get_transform
 
 
-def evaluate_single_fold(model_name, fold, normalisation_scheme, use_test_set=True):
+def evaluate_single_fold(
+    model_name, fold, normalisation_scheme, use_test_set=True, save_cm=False
+):
     """
     Evaluates a specific model fold on the Hold-out Test Set.
 
@@ -26,6 +32,7 @@ def evaluate_single_fold(model_name, fold, normalisation_scheme, use_test_set=Tr
         normalisation_scheme (str): 'imagenet' or 'bach'.
         use_test_set (bool): If True, evaluates on the 10% hold-out test set.
                              If False, could be extended to evaluate on the fold's validation set (not implemented here for simplicity).
+        save_cm (bool): If True, saves the confusion matrix to figures/grand_ensemble_confusion_matrices.
     """
     config = load_config()
 
@@ -122,6 +129,36 @@ def evaluate_single_fold(model_name, fold, normalisation_scheme, use_test_set=Tr
     print("\nClassification Report:")
     print(classification_report(all_labels, all_preds, target_names=class_names))
 
+    if save_cm:
+        cm_dir = os.path.join(
+            project_root, "figures", "grand_ensemble_confusion_matrices"
+        )
+        if not os.path.exists(cm_dir):
+            os.makedirs(cm_dir)
+
+        cm = confusion_matrix(all_labels, all_preds)
+
+        # Save raw CM data for aggregation
+        np.save(os.path.join(cm_dir, f"{model_name}_fold{fold}_cm.npy"), cm)
+
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=class_names,
+            yticklabels=class_names,
+        )
+        plt.xlabel("Predicted")
+        plt.ylabel("True")
+        plt.title(f"Confusion Matrix: {model_name} (Fold {fold})")
+
+        filename = f"{model_name}_fold{fold}_cm.png"
+        plt.savefig(os.path.join(cm_dir, filename), bbox_inches="tight", pad_inches=0.1)
+        plt.close()
+        print(f"Saved confusion matrix to {os.path.join(cm_dir, filename)}")
+
     return accuracy
 
 
@@ -137,7 +174,8 @@ if __name__ == "__main__":
         default="imagenet",
         help="Normalisation scheme (imagenet/bach)",
     )
+    parser.add_argument("--save_cm", action="store_true", help="Save confusion matrix")
 
     args = parser.parse_args()
 
-    evaluate_single_fold(args.model, args.fold, args.norm)
+    evaluate_single_fold(args.model, args.fold, args.norm, save_cm=args.save_cm)
