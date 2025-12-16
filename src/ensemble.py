@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from sklearn.metrics import classification_report
 
+
 from src.model import ResNet101Model, DenseNet161Model, ResNet18Model, DenseNet121Model
 from src.utils import load_config
 import torch.nn.functional as F
@@ -95,7 +96,6 @@ class EnsembleClassifier:
         vote_counts = Counter(predictions)
         most_common = vote_counts.most_common(1)
 
-        # if its a tie, most_common(1) just picks the first one encountered
         # TODO try out soft voting (probabilities) for ties
         return most_common[0][0]
 
@@ -141,7 +141,7 @@ def evaluate_ensemble():
     all_preds = []
     all_labels = []
 
-    # simple iteration is fine for evaluation on test dataset
+    # simple iteration on test dataset
     for i in tqdm(range(len(test_dataset))):
         image, label = test_dataset[i]  # image is PIL, label is int
 
@@ -188,27 +188,17 @@ def evaluate_grand_ensemble(model_configs, k_folds):
 
     print("\n--- Preparing Grand Ensemble Evaluation ---")
 
-    # 1. Prepare Test Data
-    # We need the exact same split as in training.
-    # Note: We use val_transform (no augmentation) for testing
+    # prepare test data with same split as in training
     val_transform = transforms.Compose(
         [
             transforms.Resize(IMG_SIZE),
             transforms.ToTensor(),
-            # Normalization depends on the model, so we might need to handle this carefully.
-            # However, the dataset class applies transform.
-            # If models have different normalizations, we need to reload the dataset or apply transform manually.
-            # Let's load the dataset without transform and apply it inside the loop per model.
         ]
     )
 
     dataset_full = BachDataset(root_dir=DATA_DIR, transform=None)
     _, test_indices = get_holdout_split(dataset_full, test_size=0.1)
     test_subset = Subset(dataset_full, test_indices)
-
-    # We can't use a DataLoader with a single transform if models need different transforms.
-    # But we can iterate over the subset and apply transform manually.
-    # Or better: Create a DataLoader that returns PIL images, and transform in the loop.
 
     test_loader = DataLoader(
         test_subset,
@@ -219,11 +209,11 @@ def evaluate_grand_ensemble(model_configs, k_folds):
 
     print(f"Evaluating on {len(test_subset)} Hold-out Test samples.")
 
-    # We need to store the sum of probabilities for every sample in the test set
+    # store sum of probabilities for every sample in the test set
     aggregated_probs = torch.zeros(len(test_subset), NUM_CLASSES).to(DEVICE)
     all_targets = []
 
-    # Collect targets once
+    # collect targets once
     print("Collecting targets...")
     for images, labels in test_loader:
         all_targets.extend(labels.numpy())
@@ -235,7 +225,6 @@ def evaluate_grand_ensemble(model_configs, k_folds):
         model_name = model_config["name"]
         norm_scheme = model_config["normalisation"]
 
-        # Get transform for this specific model configuration
         mean = config["data"]["normalisation"][norm_scheme]["mean"]
         std = config["data"]["normalisation"][norm_scheme]["std"]
 
@@ -248,7 +237,7 @@ def evaluate_grand_ensemble(model_configs, k_folds):
         )
 
         for fold in range(k_folds):
-            # Construct path
+            # construct path
             run_folder = f"{model_name}_bs{BATCH_SIZE}_lr{LEARNING_RATE}"
             fold_path = os.path.join(
                 project_root, "results", run_folder, f"fold_{fold}", "best_model.pth"
@@ -256,7 +245,7 @@ def evaluate_grand_ensemble(model_configs, k_folds):
 
             print(f"Loading {model_name} (Fold {fold}) with {norm_scheme} norm...")
 
-            # Initialize model
+            # initialise model
             if model_name == "resnet18":
                 model = ResNet18Model(num_classes=NUM_CLASSES)
             elif model_name == "resnet101":
@@ -274,21 +263,8 @@ def evaluate_grand_ensemble(model_configs, k_folds):
 
             with torch.no_grad():
                 for images, _ in test_loader:
-                    # images are PIL or numpy arrays from dataset (since transform=None)
-                    # We need to apply the specific transform
                     batch_tensors = []
                     for img in images:
-                        # dataset returns numpy array, transform expects PIL or Tensor
-                        # BachDataset returns numpy array if transform is None?
-                        # Let's check BachDataset.__getitem__
-                        # It returns: image = np.array(image) if transform is None?
-                        # Yes: image = np.array(Image.open(...))
-                        # transforms.ToTensor() handles numpy arrays (H, W, C) -> (C, H, W)
-
-                        # But wait, BachDataset converts to RGB and then np.array.
-                        # ToTensor expects np.uint8.
-
-                        # Let's convert back to PIL to be safe with Resize
                         pil_img = Image.fromarray(img.numpy())
                         tensor_img = model_transform(pil_img)
                         batch_tensors.append(tensor_img)
@@ -303,17 +279,15 @@ def evaluate_grand_ensemble(model_configs, k_folds):
             aggregated_probs += full_model_probs
             model_count += 1
 
-    # Calculate Final Predictions
+    # calculate final predictions
     avg_probs = aggregated_probs / model_count
     _, final_preds = torch.max(avg_probs, 1)
 
-    # Calculate Accuracy
+    # calculate acc
     accuracy = (final_preds == all_targets).float().mean().item() * 100
     print(f"\nGrand Ensemble Accuracy ({model_count} models): {accuracy:.2f}%")
 
-    # Classification Report
-    from sklearn.metrics import classification_report
-
+    # classification report
     print("\n--- Classification Report ---")
     print(
         classification_report(
@@ -321,7 +295,7 @@ def evaluate_grand_ensemble(model_configs, k_folds):
         )
     )
 
-    # Confusion Matrix
+    # confusion matrix
     print("\n--- Confusion Matrix ---")
     plot_confusion_matrix(
         all_targets.cpu(),

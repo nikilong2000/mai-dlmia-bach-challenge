@@ -8,16 +8,14 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader, Subset
 from sklearn.metrics import classification_report
-
-# Add project root to path if running as script
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 from src.utils import load_config
 from src.dataset import BachDataset, get_holdout_split
 from src.model import ResNet18Model, ResNet101Model, DenseNet121Model, DenseNet161Model
 from src.augmentations import get_transform
+
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.append(project_root)
 
 
 def evaluate_single_fold(
@@ -36,7 +34,7 @@ def evaluate_single_fold(
     """
     config = load_config()
 
-    # Configuration
+    # configuration
     DATA_DIR = os.path.join(project_root, config["paths"]["img_dir"])
     BATCH_SIZE = config["hyperparameters"]["batch_size"]
     LEARNING_RATE = config["hyperparameters"]["learning_rate"]
@@ -49,8 +47,7 @@ def evaluate_single_fold(
     print(f"Normalisation: {normalisation_scheme}")
     print(f"Device: {DEVICE}")
 
-    # 1. Load Data
-    # We use augmentation_strength=0 for validation/testing
+    # load Data
     transform = get_transform(
         augmentation_strength=0, normalisation_scheme=normalisation_scheme
     )
@@ -58,22 +55,18 @@ def evaluate_single_fold(
     dataset = BachDataset(root_dir=DATA_DIR, transform=transform)
 
     if use_test_set:
-        # Get the hold-out test set indices
+        # get the hold-out test set indices
         _, test_indices = get_holdout_split(dataset, test_size=0.1)
         eval_dataset = Subset(dataset, test_indices)
         print(f"Evaluating on Hold-out Test Set ({len(eval_dataset)} samples)")
     else:
-        # Placeholder for validation set logic if needed
-        print(
-            "Evaluation on specific fold validation set is not fully implemented in this script."
-        )
         return
 
     eval_loader = DataLoader(
         eval_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS
     )
 
-    # 2. Load Model
+    # load model
     if model_name == "resnet18":
         model = ResNet18Model(num_classes=NUM_CLASSES)
     elif model_name == "resnet101":
@@ -85,10 +78,7 @@ def evaluate_single_fold(
     else:
         raise ValueError(f"Unknown model name: {model_name}")
 
-    # Construct path to weights
-    # Path format: results/{model_name}_bs{batch_size}_lr{learning_rate}/fold_{fold}/best_model.pth
-    # Note: The folder name might vary if you changed config.
-    # Assuming standard naming convention from train.py
+    # construct path to weights
     run_folder = f"{model_name}_bs{BATCH_SIZE}_lr{LEARNING_RATE}"
     weights_path = os.path.join(
         project_root, "results", run_folder, f"fold_{fold}", BEST_MODEL_PATH
@@ -103,7 +93,7 @@ def evaluate_single_fold(
     model.to(DEVICE)
     model.eval()
 
-    # 3. Evaluation Loop
+    # evaluation Loop
     correct = 0
     total = 0
     all_preds = []
@@ -138,7 +128,7 @@ def evaluate_single_fold(
 
         cm = confusion_matrix(all_labels, all_preds)
 
-        # Save raw CM data for aggregation
+        # save cm data for aggregation
         np.save(os.path.join(cm_dir, f"{model_name}_fold{fold}_cm.npy"), cm)
 
         plt.figure(figsize=(8, 6))

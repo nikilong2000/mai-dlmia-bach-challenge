@@ -54,7 +54,6 @@ def get_stratified_split(dataset, split_ratios, seed=42):
     num_classes = len(dataset.classes)
     train_indices, val_indices, test_indices = [], [], []
 
-    # fixed seed for reproducibility of the shuffle
     np.random.seed(seed)
 
     for i in range(num_classes):
@@ -92,7 +91,6 @@ def get_cv_folds(dataset, dev_indices, k_folds=5, seed=42):
     skf = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
 
     folds = []
-    # skf.split returns indices relative to the dev_targets array (0 to len(dev)-1)
     # need to map these back to the original dataset indices
     for relative_train_idx, relative_val_idx in skf.split(
         np.zeros(len(dev_indices)), dev_targets

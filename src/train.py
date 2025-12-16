@@ -195,21 +195,16 @@ def train_k_fold(
     val_transform = get_transform(0, normalisation_scheme)
 
     # loading the dataset via custom class
-    # We load the full dataset with train_transform initially, but we'll handle transforms carefully
-    # Actually, for the validation set we want val_transform.
-    # A common pattern is to have the dataset return the image, and apply transform in the loop or have two datasets.
-    # BachDataset takes transform in init.
-    # So we create two dataset objects pointing to the same data, one with train transform, one with val transform.
     dataset_train_aug = BachDataset(root_dir=DATA_DIR, transform=train_transform)
     dataset_val_aug = BachDataset(root_dir=DATA_DIR, transform=val_transform)
 
-    # 1. Split into Dev (90%) and Hold-out Test (10%)
+    # split into dev and hold-out test
     dev_indices, test_indices = get_holdout_split(dataset_train_aug, test_size=0.1)
     print(
         f"Total Dev Samples: {len(dev_indices)}, Hold-out Test Samples: {len(test_indices)}"
     )
 
-    # 2. Generate K-Folds from Dev set
+    # generate k-folds from dev set
     folds = get_cv_folds(dataset_train_aug, dev_indices, k_folds=K_FOLDS)
 
     base_run_path = os.path.join(
@@ -220,10 +215,10 @@ def train_k_fold(
     for fold_idx, (train_idx, val_idx) in enumerate(folds):
         print(f"\n--- Starting Fold {fold_idx+1}/{K_FOLDS} ---")
 
-        # Create Subsets
-        # Train subset uses dataset with train augmentations
+        # create Subsets
+        # train subset uses dataset with train augmentations
         train_subset = Subset(dataset_train_aug, train_idx)
-        # Val subset uses dataset with val augmentations (no aug)
+        # val subset uses dataset with val augmentations
         val_subset = Subset(dataset_val_aug, val_idx)
 
         train_loader = DataLoader(
@@ -271,7 +266,7 @@ def train_k_fold(
             for key, value in history.items():
                 f.write(f"{key}: {value}\n")
 
-        # Create history plots for this fold
+        # create history plots for this fold
         if not os.path.exists(os.path.join(fold_run_path, HISTORY_DIR)):
             os.makedirs(os.path.join(fold_run_path, HISTORY_DIR))
 
