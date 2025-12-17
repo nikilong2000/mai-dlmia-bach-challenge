@@ -18,7 +18,17 @@ from src.visualisations import plot_confusion_matrix
 
 
 class EnsembleClassifier:
+    """
+    A classifier that ensembles multiple models for prediction.
+    """
     def __init__(self, models_config, device):
+        """
+        Initialises the EnsembleClassifier with a list of model configurations.
+
+        Args:
+            models_config (list): List of dictionaries containing model configuration (name, normalisation).
+            device (torch.device): The device to run the models on.
+        """
         self.models = []
         self.device = device
         self.config = load_config()
@@ -78,6 +88,15 @@ class EnsembleClassifier:
             )
 
     def predict(self, image):
+        """
+        Predicts the class of an image using majority voting from the ensemble models.
+
+        Args:
+            image (PIL.Image): The input image.
+
+        Returns:
+            int: The predicted class index.
+        """
         predictions = []
 
         for item in self.models:
@@ -101,6 +120,9 @@ class EnsembleClassifier:
 
 
 def train_ensemble_models():
+    """
+    Trains all models defined in the ensemble configuration.
+    """
     config = load_config()
     ensemble_models = config["ensemble2"][
         "models"
@@ -115,6 +137,9 @@ def train_ensemble_models():
 
 
 def evaluate_ensemble():
+    """
+    Evaluates the ensemble classifier on the test dataset and generates a classification report and confusion matrix.
+    """
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     DATA_DIR = os.path.join(project_root, config["paths"]["img_dir"])
@@ -176,6 +201,10 @@ def evaluate_ensemble():
 def evaluate_grand_ensemble(model_configs, k_folds):
     """
     Aggregates predictions from ALL folds of ALL model configurations on the Hold-out Test Set.
+
+    Args:
+        model_configs (list): List of model configurations.
+        k_folds (int): Number of folds used in training.
     """
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

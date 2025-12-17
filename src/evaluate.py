@@ -12,6 +12,10 @@ from src.utils import load_config
 
 
 def evaluate():
+    """
+    Evaluates the trained model on the test dataset.
+    Loads the best model weights, computes accuracy, and prints a classification report.
+    """
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

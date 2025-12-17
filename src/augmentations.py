@@ -3,6 +3,16 @@ from src.utils import load_config
 
 
 def get_transform(augmentation_strength, normalisation_scheme):
+    """
+    Returns the albumentations transform pipeline based on the augmentation strength and normalisation scheme.
+
+    Args:
+        augmentation_strength (int): Level of augmentation (0: No augmentation, 1: Simple geometric, 2: Complex geometric, 3: Photometric).
+        normalisation_scheme (str): The normalisation scheme to use (e.g., 'imagenet', 'bach').
+
+    Returns:
+        A.Compose: The composed albumentations transform pipeline.
+    """
     config = load_config()
 
     # setting the global variables according to config

@@ -34,9 +34,24 @@ class BachDataset(Dataset):
                     self.labels.append(self.class_to_idx[cls_name])
 
     def __len__(self):
+        """
+        Returns the total number of samples in the dataset.
+
+        Returns:
+            int: Length of the dataset.
+        """
         return len(self.images)
 
     def __getitem__(self, idx):
+        """
+        Retrieves the image and label at the given index.
+
+        Args:
+            idx (int): Index of the sample to retrieve.
+
+        Returns:
+            tuple: (image, label) where image is the image data and label is the class index.
+        """
         img_path = self.images[idx]
         image = Image.open(img_path).convert("RGB")
         image = np.array(image)
@@ -50,6 +65,17 @@ class BachDataset(Dataset):
 
 
 def get_stratified_split(dataset, split_ratios, seed=42):
+    """
+    Splits the dataset into train, validation, and test sets in a stratified manner.
+
+    Args:
+        dataset (Dataset): The dataset to split.
+        split_ratios (list): A list of ratios for [train, val] splits. The remainder is used for test.
+        seed (int, optional): Random seed for reproducibility. Defaults to 42.
+
+    Returns:
+        tuple: (train_dataset, val_dataset, test_dataset) as Subset objects.
+    """
     labels = np.array(dataset.labels)
     num_classes = len(dataset.classes)
     train_indices, val_indices, test_indices = [], [], []
@@ -76,6 +102,17 @@ def get_stratified_split(dataset, split_ratios, seed=42):
 
 
 def get_holdout_split(dataset, test_size=0.1, seed=42):
+    """
+    Splits the dataset into development and hold-out test sets using stratified shuffle split.
+
+    Args:
+        dataset (Dataset): The dataset to split.
+        test_size (float, optional): The proportion of the dataset to include in the test split. Defaults to 0.1.
+        seed (int, optional): Random seed for reproducibility. Defaults to 42.
+
+    Returns:
+        tuple: (dev_idx, test_idx) arrays of indices.
+    """
     targets = dataset.labels
     splitter = StratifiedShuffleSplit(
         n_splits=1, test_size=test_size, random_state=seed
@@ -85,6 +122,18 @@ def get_holdout_split(dataset, test_size=0.1, seed=42):
 
 
 def get_cv_folds(dataset, dev_indices, k_folds=5, seed=42):
+    """
+    Generates K-Fold cross-validation splits from the development indices.
+
+    Args:
+        dataset (Dataset): The full dataset.
+        dev_indices (array-like): Indices of the development set.
+        k_folds (int, optional): Number of folds. Defaults to 5.
+        seed (int, optional): Random seed for reproducibility. Defaults to 42.
+
+    Returns:
+        list: A list of tuples (train_idx, val_idx) for each fold.
+    """
     # extract targets specifically for the development subset to ensure stratification
     dev_targets = [dataset.labels[i] for i in dev_indices]
 

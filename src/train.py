@@ -25,6 +25,15 @@ def train(
     augmentation_strength=0,
     normalisation_scheme="imagenet",
 ):
+    """
+    Trains a single model with the specified configuration.
+
+    Args:
+        model_name (str, optional): Name of the model architecture. Defaults to "resnet18".
+        learning_rate (float, optional): Learning rate for the optimiser. Defaults to 0.0001.
+        augmentation_strength (int, optional): Strength of data augmentation. Defaults to 0.
+        normalisation_scheme (str, optional): Normalisation scheme to use. Defaults to "imagenet".
+    """
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -167,6 +176,15 @@ def train_k_fold(
     augmentation_strength=0,
     normalisation_scheme="imagenet",
 ):
+    """
+    Trains a model using K-Fold cross-validation.
+
+    Args:
+        model_name (str, optional): Name of the model architecture. Defaults to "resnet18".
+        learning_rate (float, optional): Learning rate for the optimiser. Defaults to 0.0001.
+        augmentation_strength (int, optional): Strength of data augmentation. Defaults to 0.
+        normalisation_scheme (str, optional): Normalisation scheme to use. Defaults to "imagenet".
+    """
     config = load_config()
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -285,6 +303,22 @@ def train_k_fold(
 def execute_training(
     model, train_loader, val_loader, criterion, optimiser, num_epochs, device, save_path
 ):
+    """
+    Executes the training loop for a given number of epochs.
+
+    Args:
+        model (nn.Module): The model to train.
+        train_loader (DataLoader): DataLoader for the training set.
+        val_loader (DataLoader): DataLoader for the validation set.
+        criterion (nn.Module): Loss function.
+        optimiser (torch.optim.Optimizer): Optimiser.
+        num_epochs (int): Number of epochs to train.
+        device (torch.device): Device to run training on.
+        save_path (str): Path to save the best model weights.
+
+    Returns:
+        dict: A dictionary containing training history (loss and accuracy).
+    """
     best_acc = 0.0
     history = {"train_loss": [], "val_loss": [], "train_acc": [], "val_acc": []}
 

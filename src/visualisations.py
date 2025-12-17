@@ -15,6 +15,19 @@ def create_history_plots(
     normalisation_scheme,
     path="",
 ):
+    """
+    Creates and saves plots for training and validation loss and accuracy.
+
+    Args:
+        history (dict): Dictionary containing training history.
+        model_name (str): Name of the model.
+        img_size (tuple): Image size used.
+        learning_rate (float): Learning rate used.
+        batch_size (int): Batch size used.
+        augmentation_strength (int): Augmentation strength used.
+        normalisation_scheme (str): Normalisation scheme used.
+        path (str, optional): Directory to save the plots. Defaults to "".
+    """
 
     txt = f"Model: {model_name}; Image Size: {img_size}; Learning Rate: {learning_rate}; Batch Size: {batch_size}; Augmentation Strength: {augmentation_strength}; Normalisation Scheme: {normalisation_scheme}."
 
@@ -48,6 +61,15 @@ def create_history_plots(
 
 
 def plot_confusion_matrix(y_true, y_pred, classes, save_path):
+    """
+    Plots and saves the confusion matrix.
+
+    Args:
+        y_true (array-like): True labels.
+        y_pred (array-like): Predicted labels.
+        classes (list): List of class names.
+        save_path (str): Path to save the plot.
+    """
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 5))
     sns.heatmap(
